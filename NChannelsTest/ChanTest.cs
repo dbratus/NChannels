@@ -7,6 +7,7 @@ using NChannels;
 using NUnit.Framework;
 using System;
 using System.Threading.Tasks;
+using System.Linq;
 
 namespace NChannelsTest
 {
@@ -18,34 +19,20 @@ namespace NChannelsTest
 		{
 			var chan = new Chan<int>();
 
-			Func<Task> emit = async () =>
-			{
-				for (int i = 0; i < 10; i++) 
-				{
-					await chan.Send(i);
-				}
+			chan
+				.Send(Enumerable.Range(0, 10))
+				.ContinueWith(t => chan.Close());
 
-				chan.Close();
-			};
+			var cnt = 0;
+			var collection =
+				chan.ForEach(item => cnt++);
 
-			int counter = 0;
-
-			Func<Task> collect = async () => 
-			{
-				while((await chan.Receive()).IsSuccess)
-				{
-					counter++;
-				}
-			};
-
-			emit();
-
-			if (!collect().Wait(TimeSpan.FromSeconds(10)))
+			if (!collection.Wait(TimeSpan.FromSeconds(10)))
 			{
 				Assert.Fail();
 			}
 
-			Assert.AreEqual(10, counter);
+			Assert.AreEqual(10, cnt);
 		}
 
 		[Test]
@@ -54,74 +41,25 @@ namespace NChannelsTest
 			var chan1 = new Chan<int>();
 			var chan2 = new Chan<int>();
 
-			Func<Chan<int>, Task> emit = async chan =>
-			{
-				for (int i = 0; i < 10; i++)
-				{
-					await chan.Send(i);
-				}
+			chan1
+				.Send(Enumerable.Range(0, 10))
+				.ContinueWith(t => chan1.Close());
+			chan2
+				.Send(Enumerable.Range(0, 10))
+				.ContinueWith(t => chan2.Close());
+			
+			var mergedChan = chan1.Merge(chan2);
 
-				chan.Close();
-			};
+			var cnt = 0;
+			var collection =
+				mergedChan.ForEach(item => cnt++);
 
-			var mergedChan = new Chan<int>();
-
-			Func<Chan<int>, Chan<int>, Task> merge = async (left, right) => 
-			{
-				var leftClosed = false;
-				var rightClosed = false;
-
-				while (!(leftClosed && rightClosed))
-				{
-					await new Select()
-						.CaseAsync(left, async (item, ok) => 
-						{
-							if (ok)
-							{
-								await mergedChan.Send(item);
-							}
-							else
-							{
-								leftClosed = true;
-							}
-						})
-						.CaseAsync(right, async (item, ok) => 
-						{
-							if (ok)
-							{
-								await mergedChan.Send(item);
-							}
-							else
-							{
-								rightClosed = true;
-							}
-						})
-						.End();
-				}
-
-				mergedChan.Close();
-			};
-
-			int counter = 0;
-
-			Func<Task> collect = async () =>
-			{
-				while ((await mergedChan.Receive()).IsSuccess)
-				{
-					counter++;
-				}
-			};
-
-			emit(chan1);
-			emit(chan2);
-			merge(chan1, chan2);
-
-			if (!collect().Wait(TimeSpan.FromSeconds(5)))
+			if (!collection.Wait(TimeSpan.FromSeconds(10)))
 			{
 				Assert.Fail();
 			}
 
-			Assert.AreEqual(20, counter);
+			Assert.AreEqual(20, cnt);
 		}
 
 		[Test]

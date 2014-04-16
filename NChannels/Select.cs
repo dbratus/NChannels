@@ -62,7 +62,7 @@ namespace NChannels
 			return this;
 		}
 
-		public Select CaseAsync<T>(Chan<T> channel, Func<T, bool, Task> action)
+		public Select Case<T>(Chan<T> channel, Func<T, bool, Task> action)
 		{
 			channel.OnceReceiveReady
 			(
