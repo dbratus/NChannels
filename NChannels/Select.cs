@@ -5,29 +5,22 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace NChannels
 {
 	public class Select
 	{
+		private static long _rng;
+
 		private readonly object _syncRoot = new object();
-		private readonly Random _rng = new Random();
 		private readonly List<Func<Task>> _immediateSelections = new List<Func<Task>>();
-		private readonly List<Action> _listenerClearings = new List<Action>(); 
+		private readonly List<Action> _listenerClearings = new List<Action>();
+		private readonly TaskCompletionSource<Func<Task>> _selection = new TaskCompletionSource<Func<Task>>(); 
 
-		private TaskCompletionSource<Func<Task>> _selection; 
 		private bool _hasSelected;
-		private bool _casesBuilt;
-
-		public Select Begin()
-		{
-			_hasSelected = false;
-			_casesBuilt = false;
-			_selection = new TaskCompletionSource<Func<Task>>();
-
-			return this;
-		}
+		private int _casesBuilt;
 
 		public Select Case<T>(Chan<T> channel, Action<T, bool> action)
 		{
@@ -42,7 +35,7 @@ namespace NChannels
 						action(result.Result, result.IsSuccess);
 					};
 
-					if (_casesBuilt)
+					if (_casesBuilt > 0)
 					{
 						if (!_hasSelected)
 						{
@@ -82,7 +75,7 @@ namespace NChannels
 						await action(result.Result, result.IsSuccess);
 					};
 
-					if (_casesBuilt)
+					if (_casesBuilt > 0)
 					{
 						if (!_hasSelected)
 						{
@@ -104,31 +97,21 @@ namespace NChannels
 				}
 			);
 
-			_listenerClearings.Add(() => channel.OnceReceiveReady(null));
-
 			return this;
 		}
 
 		public async Task End()
 		{
-			_casesBuilt = true;
+			Interlocked.Increment(ref _casesBuilt);
 
 			if (_immediateSelections.Count > 0)
 			{
-				await _immediateSelections[_rng.Next(0, _immediateSelections.Count)]();
-				_immediateSelections.Clear();
-				return;
+				await _immediateSelections[(int)(Interlocked.Increment(ref _rng) % _immediateSelections.Count)]();
 			}
-
-			var selectedCase = await _selection.Task;
-			await selectedCase();
-
-			foreach (var clear in _listenerClearings)
+			else
 			{
-				clear();
+				await (await _selection.Task)();
 			}
-			
-			_listenerClearings.Clear();
 		}
 	}
 }

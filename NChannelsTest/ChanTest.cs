@@ -32,12 +32,8 @@ namespace NChannelsTest
 
 			Func<Task> collect = async () => 
 			{
-				ChanResult<int> result;
-
-				while((result = await chan.Receive()).IsSuccess)
+				while((await chan.Receive()).IsSuccess)
 				{
-					Console.WriteLine(result.Result);
-
 					counter++;
 				}
 			};
@@ -74,12 +70,10 @@ namespace NChannelsTest
 			{
 				var leftClosed = false;
 				var rightClosed = false;
-				var select = new Select();
 
 				while (!(leftClosed && rightClosed))
 				{
-					await select
-						.Begin()
+					await new Select()
 						.CaseAsync(left, async (item, ok) => 
 						{
 							if (ok)
@@ -128,6 +122,44 @@ namespace NChannelsTest
 			}
 
 			Assert.AreEqual(20, counter);
+		}
+
+		[Test]
+		public void Timeout()
+		{
+			Func<Task<bool>> doTests = async () => 
+			{
+				var result = true;
+				var rng = new Random();
+
+				for (int i = 0; i < 10; i++)
+				{
+					TimeSpan ts1, ts2;
+
+					do
+					{
+						ts1 = TimeSpan.FromMilliseconds(rng.Next(10, 500));
+						ts2 = TimeSpan.FromMilliseconds(rng.Next(10, 500));
+					} while (Math.Abs((ts1 - ts2).TotalMilliseconds) < 100);
+
+					var selection = default(TimeSpan);
+
+					await new Select()
+						.Case(ts1.After(), (t, ok) => selection = ts1)
+						.Case(ts2.After(), (t, ok) => selection = ts2)
+						.End();
+
+					if ((ts1 < ts2 && selection != ts1) || (ts2 < ts1 && selection != ts2))
+					{
+						result = false;
+						break;
+					}
+				}
+
+				return result;
+			};
+
+			Assert.IsTrue(doTests().Result);
 		}
 	}
 }
