@@ -63,6 +63,149 @@ namespace NChannelsTest
 		}
 
 		[Test]
+		public void Spread()
+		{
+			var chan1 = new Chan<int>();
+			var chan2 = new Chan<int>();
+			var chan3 = new Chan<int>();
+
+			var source = new Chan<int>();
+
+			var tasks = new Task[4];
+ 
+			tasks[0] =
+				source.Spread(new[] { chan1, chan2, chan3 });
+
+			source
+				.Send(Enumerable.Range(0, 10))
+				.ContinueWith(t => source.Close());
+
+			var cnt1 = 0;
+			tasks[1] =
+				chan1.ForEach(item => cnt1++);
+
+			var cnt2 = 0;
+			tasks[2] =
+				chan2.ForEach(item => cnt2++);
+
+			var cnt3 = 0;
+			tasks[3] =
+				chan3.ForEach(item => cnt3++);
+
+			if (!Task.WaitAll(tasks, TimeSpan.FromSeconds(10)))
+			{
+				Assert.Fail();
+			}
+
+			Assert.AreEqual(30, cnt1 + cnt2 + cnt3);
+		}
+
+		[Test]
+		public void Purge()
+		{
+			var chan = new Chan<int>();
+
+			chan
+				.Send(Enumerable.Range(0, 10))
+				.ContinueWith(t => chan.Close());
+
+			if (!chan.Purge().Wait(TimeSpan.FromSeconds(10)))
+			{
+				Assert.Fail();
+			}
+		}
+
+		[Test]
+		public void Forward()
+		{
+			var source = new Chan<int>();
+			var target = new Chan<int>();
+
+			var tasks =
+				new Task[2];
+
+			tasks[0] =
+				source.Forward(target);
+
+			source
+				.Send(Enumerable.Range(0, 10))
+				.ContinueWith(t => source.Close());
+
+			var cnt = 0;
+			tasks[1] =
+				target.ForEach(item => cnt++);
+
+			if (!Task.WaitAll(tasks, TimeSpan.FromSeconds(10)))
+			{
+				Assert.Fail();
+			}
+		}
+
+		[Test]
+		public void Count()
+		{
+			var chan = new Chan<int>();
+
+			chan
+				.Send(Enumerable.Range(0, 10))
+				.ContinueWith(t => chan.Close());
+
+			var counting = chan.Count();
+
+			if (!counting.Wait(TimeSpan.FromSeconds(10)))
+			{
+				Assert.Fail();
+			}
+
+			Assert.AreEqual(10, counting.Result);
+		}
+
+		[Test]
+		public void Where()
+		{
+			var chan = new Chan<int>();
+
+			chan
+				.Send(Enumerable.Range(0, 10))
+				.ContinueWith(t => chan.Close());
+
+			var counting = 
+				chan
+					.Where(item => item % 2 == 0)
+					.Count();
+
+			if (!counting.Wait(TimeSpan.FromSeconds(10)))
+			{
+				Assert.Fail();
+			}
+
+			Assert.AreEqual(5, counting.Result);
+		}
+
+		[Test]
+		public void Select()
+		{
+			var chan = new Chan<int>();
+
+			chan
+				.Send(Enumerable.Range(0, 10))
+				.ContinueWith(t => chan.Close());
+
+			var sum = 0;
+			var collection =
+				chan
+					.Select(item => item % 2)
+					.ForEach(item => sum += item);
+
+			if (!collection.Wait(TimeSpan.FromSeconds(10)))
+			{
+				Assert.Fail();
+			}
+
+			Assert.AreEqual(5, sum);
+		}
+
+		[Test]
 		public void Timeout()
 		{
 			Func<Task<bool>> doTests = async () => 

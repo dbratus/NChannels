@@ -70,7 +70,7 @@ namespace NChannels
 			return target;
 		}
 
-		public static async void DoWhere<T>(Chan<T> source, Chan<T> target, Predicate<T> condition)
+		private static async void DoWhere<T>(Chan<T> source, Chan<T> target, Predicate<T> condition)
 		{
 			ChanResult<T> result;
 
@@ -92,7 +92,7 @@ namespace NChannels
 			return target;
 		}
 
-		public static async void DoSelect<TIn, TOut>(Chan<TIn> source, Chan<TOut> target, Func<TIn, TOut> map)
+		private static async void DoSelect<TIn, TOut>(Chan<TIn> source, Chan<TOut> target, Func<TIn, TOut> map)
 		{
 			ChanResult<TIn> result;
 
@@ -144,9 +144,7 @@ namespace NChannels
 
 		public static async Task Purge<T>(this Chan<T> chan)
 		{
-			while ((await chan.Receive()).IsSuccess)
-			{
-			}
+			while ((await chan.Receive()).IsSuccess) { }
 		}
 
 		public static async Task<long> Count<T>(this Chan<T> chan)
