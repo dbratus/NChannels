@@ -11,16 +11,10 @@ namespace NChannels
 {
 	public class Select
 	{
-		private struct ChanHandler
-		{
-			public IObservableChannel Channel;
-			public EventHandler Handler;
-		}
-
 		private readonly object _syncRoot = new object();
 		private readonly Random _rng = new Random();
-		private readonly List<ChanHandler> _handlers = new List<ChanHandler>();
 		private readonly List<Func<Task>> _immediateSelections = new List<Func<Task>>();
+		private readonly List<Action> _listenerClearings = new List<Action>(); 
 
 		private TaskCompletionSource<Func<Task>> _selection; 
 		private bool _hasSelected;
@@ -37,8 +31,9 @@ namespace NChannels
 
 		public Select Case<T>(Chan<T> channel, Action<T, bool> action)
 		{
-			EventHandler onReceiveReady =
-				(sender, args) => 
+			channel.OnceReceiveReady
+			(
+				() =>
 				{
 					Func<Task> selection = async () =>
 					{
@@ -66,20 +61,21 @@ namespace NChannels
 					{
 						_immediateSelections.Add(selection);
 					}
-				};
-			channel.ReceiveReady += onReceiveReady;
-
-			_handlers.Add(new ChanHandler { Channel = channel, Handler = onReceiveReady });
+				}
+			);
+			
+			_listenerClearings.Add(() => channel.OnceReceiveReady(null));
 
 			return this;
 		}
 
 		public Select CaseAsync<T>(Chan<T> channel, Func<T, bool, Task> action)
 		{
-			EventHandler onReceiveReady =
-				(sender, args) => 
+			channel.OnceReceiveReady
+			(
+				() =>
 				{
-					Func<Task> selection = async () => 
+					Func<Task> selection = async () =>
 					{
 						var result = await channel.Receive();
 
@@ -105,10 +101,10 @@ namespace NChannels
 					{
 						_immediateSelections.Add(selection);
 					}
-				};
-			channel.ReceiveReady += onReceiveReady;
+				}
+			);
 
-			_handlers.Add(new ChanHandler { Channel = channel, Handler = onReceiveReady });
+			_listenerClearings.Add(() => channel.OnceReceiveReady(null));
 
 			return this;
 		}
@@ -127,10 +123,12 @@ namespace NChannels
 			var selectedCase = await _selection.Task;
 			await selectedCase();
 
-			foreach (var chanHandler in _handlers)
+			foreach (var clear in _listenerClearings)
 			{
-				chanHandler.Channel.ReceiveReady -= chanHandler.Handler;
+				clear();
 			}
+			
+			_listenerClearings.Clear();
 		}
 	}
 }

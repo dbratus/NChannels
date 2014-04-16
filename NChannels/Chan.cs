@@ -6,10 +6,11 @@
 using System;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace NChannels
 {
-	public class Chan<T> : IObservableChannel
+	public sealed class Chan<T>
 	{
 		private struct Sender
 		{
@@ -25,6 +26,8 @@ namespace NChannels
 		private readonly Queue<Sender> _blockedSenders;
 		private readonly Queue<TaskCompletionSource<ChanResult<T>>> _blockedReceivers;
 		private bool _isClosed;
+		private Action _onceReceiveReady;
+		private Action _onceSendReady;
 
 		public Chan(int maxBufferSize = 1)
 		{
@@ -171,73 +174,69 @@ namespace NChannels
 			}
 		}
 
-		private event EventHandler _receiveReady;
-		public event EventHandler ReceiveReady
+		private void OnReceiveReady()
 		{
-			add
+			Action action;
+
+			if ((action = Interlocked.Exchange(ref _onceReceiveReady, null)) != null)
+			{
+				action();
+			}
+		}
+
+		private void OnSendReady()
+		{
+			Action action;
+
+			if ((action = Interlocked.Exchange(ref _onceSendReady, null)) != null)
+			{
+				action();
+			}
+		}
+
+		internal void OnceReceiveReady(Action action)
+		{
+			if (action != null)
 			{
 				lock (_syncRoot)
 				{
 					if (_isClosed || _readPointer != _writePointer)
 					{
-						value.Invoke(this, EventArgs.Empty);
+						action();
 					}
-
-					_receiveReady += value;
+					else
+					{
+						Interlocked.Exchange(ref _onceReceiveReady, action);
+					}
 				}
 			}
-			remove
+			else
 			{
-				_receiveReady -= value;
+				Interlocked.Exchange(ref _onceReceiveReady, null);
 			}
 		}
 
-		protected virtual void OnReceiveReady()
+		internal void OnceSendReady(Action action)
 		{
-			EventHandler handler = _receiveReady;
-
-			if (handler != null)
-			{
-				handler(this, EventArgs.Empty);
-			}
-		}
-
-		private event EventHandler _sendReady;
-		public event EventHandler SendReady
-		{
-			add
+			if (action != null)
 			{
 				lock (_syncRoot)
 				{
 					if (_writePointer - _readPointer < _maxBufferSize)
 					{
-						value.Invoke(this, EventArgs.Empty);
+						action();
 					}
-
-					_sendReady += value;
+					else
+					{
+						Interlocked.Exchange(ref _onceSendReady, action);
+					}
 				}
 			}
-			remove
+			else
 			{
-				_sendReady -= value;
+				Interlocked.Exchange(ref _onceSendReady, null);
 			}
 		}
-
-		protected virtual void OnSendReady()
-		{
-			EventHandler handler = _sendReady;
-
-			if (handler != null)
-			{
-				handler(this, EventArgs.Empty);
-			}
-		}
-	}
-
-	public interface IObservableChannel
-	{
-		event EventHandler ReceiveReady;
-		event EventHandler SendReady;
 	}
 
 	public struct ChanResult<T>
