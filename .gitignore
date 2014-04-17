@@ -2,3 +2,4 @@ NChannels/obj/
 *.sln
 NChannelsTest/obj/
 packages/
+NChannelsTest/bin/
