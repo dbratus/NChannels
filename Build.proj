@@ -1,0 +1,36 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\MSBuildCommunityTasks\MSBuild.Community.Tasks.Targets"/>
+
+  <PropertyGroup>
+    <OutputDir Condition="'$(OutputDir)'==''">BuildOutput</OutputDir>
+    <NUnitToolPath>NUnit</NUnitToolPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Projects Include="**\*.csproj" />
+    <ProjectDirs Include="@(Projects -> '%(RelativeDir)')" />
+    <ProjectOutputDirs Include="@(ProjectDirs -> '%(Identity)bin')" />
+    <ProjectOutputDirs Include="@(ProjectDirs -> '%(Identity)obj')" />
+  </ItemGroup>
+  
+  <Target Name="Test" DependsOnTargets="Compile">
+    <NUnit ToolPath="$(NUnitToolPath)"
+           Assemblies="NChannelsTest\bin\Release\NChannelsTest.dll" />
+  </Target>
+
+  <Target Name="Compile">
+    <MSBuild Projects="@(Projects)"
+             Properties="Configuration=Release"/>
+  </Target>
+
+  <Target Name="CreateOutputDir">
+    <MakeDir Directories="$(OutputDir)" />
+  </Target>
+
+  <Target Name="Clean">
+    <Delete Files="TestResult.xml" />
+    <RemoveDir Directories="$(OutputDir)" />
+    <RemoveDir Directories="@(ProjectOutputDirs)" />
+  </Target>
+</Project>
