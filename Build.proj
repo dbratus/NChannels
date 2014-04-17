@@ -3,8 +3,8 @@
   <Import Project="$(MSBuildExtensionsPath)\MSBuildCommunityTasks\MSBuild.Community.Tasks.Targets"/>
 
   <PropertyGroup>
-    <OutputDir Condition="'$(OutputDir)'==''">BuildOutput</OutputDir>
     <NUnitToolPath>NUnit</NUnitToolPath>
+    <NuGet>.nuget\nuget</NuGet>
   </PropertyGroup>
 
   <ItemGroup>
@@ -12,6 +12,7 @@
     <ProjectDirs Include="@(Projects -> '%(RelativeDir)')" />
     <ProjectOutputDirs Include="@(ProjectDirs -> '%(Identity)bin')" />
     <ProjectOutputDirs Include="@(ProjectDirs -> '%(Identity)obj')" />
+    <Packages Include="*.nupkg" />
   </ItemGroup>
   
   <Target Name="Test" DependsOnTargets="Compile">
@@ -24,13 +25,18 @@
              Properties="Configuration=Release"/>
   </Target>
 
-  <Target Name="CreateOutputDir">
-    <MakeDir Directories="$(OutputDir)" />
+  <Target Name="Pack" DependsOnTargets="Test">
+    <Delete Files="@(Packages)" />
+    <Exec Command="$(NuGet) pack NChannels\NChannels.csproj" />
   </Target>
 
+  <Target Name="Publish" DependsOnTargets="Pack">
+    <Exec Command="$(NuGet) push @(Packages)" />
+  </Target>
+  
   <Target Name="Clean">
     <Delete Files="TestResult.xml" />
-    <RemoveDir Directories="$(OutputDir)" />
+    <Delete Files="@(Packages)" />
     <RemoveDir Directories="@(ProjectOutputDirs)" />
   </Target>
 </Project>
