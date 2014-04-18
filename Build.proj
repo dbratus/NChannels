@@ -5,6 +5,7 @@
   <PropertyGroup>
     <NUnitToolPath>NUnit</NUnitToolPath>
     <NuGet>.nuget\nuget</NuGet>
+    <PackageName>NChannels.0.1.1.0.nupkg</PackageName>
   </PropertyGroup>
 
   <ItemGroup>
@@ -26,12 +27,11 @@
   </Target>
 
   <Target Name="Pack" DependsOnTargets="Test">
-    <Delete Files="@(Packages)" />
     <Exec Command="$(NuGet) pack NChannels\NChannels.csproj" />
   </Target>
 
   <Target Name="Publish" DependsOnTargets="Pack">
-    <Exec Command="$(NuGet) push @(Packages)" />
+    <Exec Command="$(NuGet) push $(PackageName)" />
   </Target>
   
   <Target Name="Clean">

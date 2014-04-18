@@ -4,3 +4,4 @@ NChannelsTest/obj/
 packages/
 NChannelsTest/bin/
 TestResult.xml
+*.nupkg
