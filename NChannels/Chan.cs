@@ -10,6 +10,21 @@ using System.Threading;
 
 namespace NChannels
 {
+	/// <summary>
+	/// <para>
+	/// Asynchronous channel with limited buffer size.
+	/// </para>
+	/// 
+	/// <para>
+	/// Channels link two or more asynchronous task and allow them
+	/// to pass items without blocking and keeping the limited number of
+	/// items in backlog. If a send/receive operation cannot be completed
+	/// immediately, a channel does not block. Instead, it returns a task that
+	/// represents the completion of the operation. Thus, the tasks can wait
+	/// for send/receive by using 'await' operator.
+	/// </para>
+	/// </summary>
+	/// <typeparam name="T">Item type.</typeparam>
 	public sealed class Chan<T>
 	{
 		private struct Sender
@@ -19,7 +34,7 @@ namespace NChannels
 		}
 
 		private readonly object _syncRoot = new object();
-		private readonly int _maxBufferSize;
+		private readonly int _bufferSize;
 		private readonly T[] _queue;
 		private long _writePointer;
 		private long _readPointer;
@@ -29,19 +44,39 @@ namespace NChannels
 		private Action _onceReceiveReady;
 		private Action _onceSendReady;
 
-		public Chan(int maxBufferSize = 1)
+		/// <summary>
+		/// Creates a channel.
+		/// </summary>
+		/// <param name="bufferSize">
+		/// The capacity of the buffer. Indicates how many items
+		/// a channel can accept without blocking if no task is
+		/// receiving them.
+		/// </param>
+		public Chan(int bufferSize = 1)
 		{
-			if (maxBufferSize < 1)
+			if (bufferSize < 1)
 			{
 				throw new ArgumentException("maxBufferSize");
 			}
 
-			_maxBufferSize = maxBufferSize;
-			_queue = new T[maxBufferSize];
+			_bufferSize = bufferSize;
+			_queue = new T[bufferSize];
 			_blockedSenders = new Queue<Sender>();
 			_blockedReceivers = new Queue<TaskCompletionSource<ChanResult<T>>>();
 		}
 
+		/// <summary>
+		/// <para>
+		/// Asynchronously receives an item.
+		/// </para>
+		/// 
+		/// <para>
+		/// The task returned by Receive completes when either an item is received
+		/// or the channel is closed. If the channel is closed before the call,
+		/// the task completes immediately.
+		/// </para>
+		/// </summary>
+		/// <returns>The task representing the completion of the operation.</returns>
 		public Task<ChanResult<T>> Receive()
 		{
 			var completion = new TaskCompletionSource<ChanResult<T>>();
@@ -54,7 +89,7 @@ namespace NChannels
 					(
 						new ChanResult<T> 
 						{	
-							Result = _queue[(_readPointer++) % _maxBufferSize],
+							Result = _queue[(_readPointer++) % _bufferSize],
 							IsSuccess = true
 						}
 					);
@@ -63,7 +98,7 @@ namespace NChannels
 					{
 						var sender = _blockedSenders.Dequeue();
 
-						_queue[(_writePointer++) % _maxBufferSize] = sender.Item;
+						_queue[(_writePointer++) % _bufferSize] = sender.Item;
 
 						if (!_isClosed)
 						{
@@ -103,6 +138,21 @@ namespace NChannels
 			return completion.Task;
 		}
 
+		/// <summary>
+		/// <para>
+		/// Asynchronously sends an item to the channel.
+		/// </para>
+		/// 
+		/// <para>
+		/// The task returned by Send completes when the item is either put to
+		/// the buffer or received.
+		/// </para>
+		/// </summary>
+		/// <param name="item">The item to be sent.</param>
+		/// <returns>The task representing the completion of the operation.</returns>
+		/// <exception cref="ChannelClosedException">
+		/// When the channel is closed.
+		/// </exception>
 		public Task Send(T item)
 		{
 			if (_isClosed)
@@ -114,7 +164,7 @@ namespace NChannels
 
 			lock (_syncRoot)
 			{
-				if (_writePointer - _readPointer < _maxBufferSize)
+				if (_writePointer - _readPointer < _bufferSize)
 				{
 					if (_blockedReceivers.Count > 0)
 					{
@@ -129,7 +179,7 @@ namespace NChannels
 					}
 					else
 					{
-						_queue[(_writePointer++) % _maxBufferSize] = item;
+						_queue[(_writePointer++) % _bufferSize] = item;
 						OnReceiveReady();
 					}
 
@@ -144,6 +194,9 @@ namespace NChannels
 			return completion.Task;
 		}
 
+		/// <summary>
+		/// Closes the channel.
+		/// </summary>
 		public void Close()
 		{
 			lock (_syncRoot)
@@ -222,7 +275,7 @@ namespace NChannels
 			{
 				lock (_syncRoot)
 				{
-					if (_writePointer - _readPointer < _maxBufferSize)
+					if (_writePointer - _readPointer < _bufferSize)
 					{
 						action();
 					}
@@ -239,15 +292,31 @@ namespace NChannels
 		}
 	}
 
+	/// <summary>
+	/// Result of the Receive operation.
+	/// </summary>
+	/// <typeparam name="T">Item type.</typeparam>
 	public struct ChanResult<T>
 	{
+		/// <summary>
+		/// The item received. If the item has not been received,
+		/// the Result if default(T).
+		/// </summary>
 		public T Result { get; internal set; }
+
+		/// <summary>
+		/// It is false if the channel has been closed; otherwsie, true,
+		/// </summary>
 		public bool IsSuccess { get; internal set; }
 	}
 
+	/// <summary>
+	/// The exception thrown when an attempt has been made to send to
+	/// a closed channel.
+	/// </summary>
 	public class ChannelClosedException : InvalidOperationException
 	{
-		public ChannelClosedException() : base("Channel is closed")
+		internal ChannelClosedException() : base("Channel is closed")
 		{
 		}
 	}

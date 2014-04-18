@@ -10,6 +10,14 @@ namespace NChannels
 {
 	public static class TimeSpanExtensions
 	{
+		/// <summary>
+		/// Creates a channel which emits the current time after
+		/// a specified delay.
+		/// </summary>
+		/// <param name="delay">The time after which the current time is emitted.</param>
+		/// <returns>
+		/// A channel which emits the current time after a specified delay.
+		/// </returns>
 		public static Chan<DateTime> After(this TimeSpan delay)
 		{
 			var chan = new Chan<DateTime>();
