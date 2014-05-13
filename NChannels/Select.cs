@@ -36,6 +36,7 @@ namespace NChannels
 		private bool _hasSelected;
 		private int _casesBuilt;
 		private bool _hasBeenUsed;
+		private int _casesCount;
 
 		/// <summary>
 		/// Adds a synchronous handler for a channel.
@@ -86,6 +87,8 @@ namespace NChannels
 			);
 			
 			_listenerClearings.Add(() => channel.OnceReceiveReady(null));
+			
+			_casesCount++;
 
 			return this;
 		}
@@ -138,6 +141,8 @@ namespace NChannels
 				}
 			);
 
+			_casesCount++;
+
 			return this;
 		}
 
@@ -154,9 +159,11 @@ namespace NChannels
 
 			Interlocked.Increment(ref _casesBuilt);
 
-			if (_immediateSelections.Count > 0)
+			var sel = (int)(Interlocked.Increment(ref _rng) % _casesCount);
+
+			if (sel < _immediateSelections.Count)
 			{
-				await _immediateSelections[(int)(Interlocked.Increment(ref _rng) % _immediateSelections.Count)]();
+				await _immediateSelections[sel]();
 			}
 			else
 			{

@@ -242,6 +242,31 @@ namespace NChannelsTest
 
 			Assert.IsTrue(doTests().Result);
 		}
+
+		[Test]
+		public void CloseSelecting()
+		{
+			var msgChan = new Chan<int>();
+			var closeChan = new Chan<bool>();
+
+			Func<Task> select = async () => 
+			{
+				var run = true;
+
+				while (run)
+				{
+					await new Select()
+						.Case(msgChan, (_, ok) => {})
+						.Case(closeChan, (_, ok) => { run = false; })
+						.End();
+				}
+			};
+
+			var t = select();
+
+			msgChan.Close();
+			closeChan.Send(true).ContinueWith(_ => t.Wait()).Wait();
+		}
 	}
 }
 
