@@ -5,7 +5,7 @@
   <PropertyGroup>
     <NUnitToolPath>NUnit</NUnitToolPath>
     <NuGet>.nuget\nuget</NuGet>
-    <PackageName>NChannels.0.1.2.0.nupkg</PackageName>
+    <PackageName>NChannels.0.1.3.0.nupkg</PackageName>
   </PropertyGroup>
 
   <ItemGroup>

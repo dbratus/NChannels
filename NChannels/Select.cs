@@ -36,7 +36,6 @@ namespace NChannels
 		private bool _hasSelected;
 		private int _casesBuilt;
 		private bool _hasBeenUsed;
-		private int _casesCount;
 
 		/// <summary>
 		/// Adds a synchronous handler for a channel.
@@ -72,7 +71,7 @@ namespace NChannels
 							{
 								if (!_hasSelected)
 								{
-									_selection.SetResult(selection);
+									SetResult(selection);
 
 									_hasSelected = true;
 								}
@@ -87,8 +86,6 @@ namespace NChannels
 			);
 			
 			_listenerClearings.Add(() => channel.OnceReceiveReady(null));
-			
-			_casesCount++;
 
 			return this;
 		}
@@ -127,7 +124,7 @@ namespace NChannels
 							{
 								if (!_hasSelected)
 								{
-									_selection.SetResult(selection);
+									SetResult(selection);
 
 									_hasSelected = true;
 								}
@@ -140,8 +137,6 @@ namespace NChannels
 					}
 				}
 			);
-
-			_casesCount++;
 
 			return this;
 		}
@@ -159,18 +154,30 @@ namespace NChannels
 
 			Interlocked.Increment(ref _casesBuilt);
 
-			var sel = (int)(Interlocked.Increment(ref _rng) % _casesCount);
+			if (_immediateSelections.Count > 0)
+			{
+				Task.Delay(1).ContinueWith(_ => MakeRandomSelection());
+			}
 
-			if (sel < _immediateSelections.Count)
-			{
-				await _immediateSelections[sel]();
-			}
-			else
-			{
-				await (await _selection.Task)();
-			}
+			await (await _selection.Task)();
 
 			_hasBeenUsed = true;
+		}
+
+		private void SetResult(Func<Task> result)
+		{
+			lock (_selection)
+			{
+				if (_selection.Task.Status != TaskStatus.RanToCompletion)
+				{
+					_selection.SetResult(result);
+				}
+			}
+		}
+
+		private void MakeRandomSelection()
+		{
+			SetResult(_immediateSelections[(int)(Interlocked.Increment(ref _rng) % _immediateSelections.Count)]);
 		}
 	}
 }

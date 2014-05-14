@@ -8,6 +8,7 @@ using NUnit.Framework;
 using System;
 using System.Threading.Tasks;
 using System.Linq;
+using System.Threading;
 
 namespace NChannelsTest
 {
@@ -266,6 +267,28 @@ namespace NChannelsTest
 
 			msgChan.Close();
 			closeChan.Send(true).ContinueWith(_ => t.Wait()).Wait();
+		}
+
+		[Test]
+		public void SelectNotEmpty()
+		{
+			var closeChan = new Chan<bool>();
+
+			closeChan.Send(true).Wait();
+
+			Func<Task> select = async () =>
+			{
+				var run = true;
+
+				while (run)
+				{
+					await new Select()
+						.Case(closeChan, (_, ok) => { run = false; })
+						.End();
+				}
+			};
+
+			select().Wait();
 		}
 	}
 }
