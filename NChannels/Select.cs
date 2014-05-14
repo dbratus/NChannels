@@ -156,7 +156,9 @@ namespace NChannels
 
 			if (_immediateSelections.Count > 0)
 			{
+#pragma warning disable 4014
 				Task.Delay(1).ContinueWith(_ => MakeRandomSelection());
+#pragma warning restore 4014
 			}
 
 			await (await _selection.Task)();
