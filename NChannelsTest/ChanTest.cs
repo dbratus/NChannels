@@ -4,7 +4,7 @@
 // that can be found in the LICENSE file.
 
 using NChannels;
-using NUnit.Framework;
+using Xunit;
 using System;
 using System.Threading.Tasks;
 using System.Linq;
@@ -12,10 +12,9 @@ using System.Threading;
 
 namespace NChannelsTest
 {
-	[TestFixture]
 	public class ChanTest
 	{
-		[Test]
+		[Fact]
 		public void SendReceive()
 		{
 			var chan = new Chan<int>();
@@ -28,15 +27,11 @@ namespace NChannelsTest
 			var collection =
 				chan.ForEach(item => cnt++);
 
-			if (!collection.Wait(TimeSpan.FromSeconds(10)))
-			{
-				Assert.Fail();
-			}
-
-			Assert.AreEqual(10, cnt);
+			Assert.True(collection.Wait(TimeSpan.FromSeconds(10)));
+			Assert.Equal(10, cnt);
 		}
 
-		[Test]
+		[Fact]
 		public void Merge()
 		{
 			var chan1 = new Chan<int>();
@@ -55,15 +50,11 @@ namespace NChannelsTest
 			var collection =
 				mergedChan.ForEach(item => cnt++);
 
-			if (!collection.Wait(TimeSpan.FromSeconds(10)))
-			{
-				Assert.Fail();
-			}
-
-			Assert.AreEqual(20, cnt);
+			Assert.True(collection.Wait(TimeSpan.FromSeconds(10)));
+			Assert.Equal(20, cnt);
 		}
 
-		[Test]
+		[Fact]
 		public void Spread()
 		{
 			var chan1 = new Chan<int>();
@@ -93,15 +84,11 @@ namespace NChannelsTest
 			tasks[3] =
 				chan3.ForEach(item => cnt3++);
 
-			if (!Task.WaitAll(tasks, TimeSpan.FromSeconds(10)))
-			{
-				Assert.Fail();
-			}
-
-			Assert.AreEqual(30, cnt1 + cnt2 + cnt3);
+			Assert.True(Task.WaitAll(tasks, TimeSpan.FromSeconds(10)));
+			Assert.Equal(30, cnt1 + cnt2 + cnt3);
 		}
 
-		[Test]
+		[Fact]
 		public void Purge()
 		{
 			var chan = new Chan<int>();
@@ -110,13 +97,10 @@ namespace NChannelsTest
 				.Send(Enumerable.Range(0, 10))
 				.ContinueWith(t => chan.Close());
 
-			if (!chan.Purge().Wait(TimeSpan.FromSeconds(10)))
-			{
-				Assert.Fail();
-			}
+			Assert.True(chan.Purge().Wait(TimeSpan.FromSeconds(10)));
 		}
 
-		[Test]
+		[Fact]
 		public void Forward()
 		{
 			var source = new Chan<int>();
@@ -136,13 +120,10 @@ namespace NChannelsTest
 			tasks[1] =
 				target.ForEach(item => cnt++);
 
-			if (!Task.WaitAll(tasks, TimeSpan.FromSeconds(10)))
-			{
-				Assert.Fail();
-			}
+			Assert.True(Task.WaitAll(tasks, TimeSpan.FromSeconds(10)));
 		}
 
-		[Test]
+		[Fact]
 		public void Count()
 		{
 			var chan = new Chan<int>();
@@ -153,15 +134,11 @@ namespace NChannelsTest
 
 			var counting = chan.Count();
 
-			if (!counting.Wait(TimeSpan.FromSeconds(10)))
-			{
-				Assert.Fail();
-			}
-
-			Assert.AreEqual(10, counting.Result);
+			Assert.True(counting.Wait(TimeSpan.FromSeconds(10)));
+			Assert.Equal(10, counting.Result);
 		}
 
-		[Test]
+		[Fact]
 		public void Where()
 		{
 			var chan = new Chan<int>();
@@ -175,15 +152,11 @@ namespace NChannelsTest
 					.Where(item => item % 2 == 0)
 					.Count();
 
-			if (!counting.Wait(TimeSpan.FromSeconds(10)))
-			{
-				Assert.Fail();
-			}
-
-			Assert.AreEqual(5, counting.Result);
+			Assert.True(counting.Wait(TimeSpan.FromSeconds(10)));
+			Assert.Equal(5, counting.Result);
 		}
 
-		[Test]
+		[Fact]
 		public void Select()
 		{
 			var chan = new Chan<int>();
@@ -198,15 +171,11 @@ namespace NChannelsTest
 					.Select(item => item % 2)
 					.ForEach(item => sum += item);
 
-			if (!collection.Wait(TimeSpan.FromSeconds(10)))
-			{
-				Assert.Fail();
-			}
-
-			Assert.AreEqual(5, sum);
+			Assert.True(collection.Wait(TimeSpan.FromSeconds(10)));
+			Assert.Equal(5, sum);
 		}
 
-		[Test]
+		[Fact]
 		public void Timeout()
 		{
 			Func<Task<bool>> doTests = async () => 
@@ -241,10 +210,10 @@ namespace NChannelsTest
 				return result;
 			};
 
-			Assert.IsTrue(doTests().Result);
+			Assert.True(doTests().Result);
 		}
 
-		[Test]
+		[Fact]
 		public void CloseSelecting()
 		{
 			var msgChan = new Chan<int>();
@@ -269,7 +238,7 @@ namespace NChannelsTest
 			closeChan.Send(true).ContinueWith(_ => t.Wait()).Wait();
 		}
 
-		[Test]
+		[Fact]
 		public void SelectNotEmpty()
 		{
 			var closeChan = new Chan<bool>();

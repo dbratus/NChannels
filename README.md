@@ -18,7 +18,7 @@ private static async Task Echo()
 	{
 		string line;
 
-		//The reader acquires some data item by item reading
+		//The reader acquires some data item by reading
 		//some IO source asynchronously.
 		while ((line = await Console.In.ReadLineAsync()).Length > 0)
 		{
